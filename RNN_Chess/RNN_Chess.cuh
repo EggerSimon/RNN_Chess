@@ -1,6 +1,8 @@
 #include "Variables.h"
 #include "LayerCalculation.cuh"
 #include "CudaErrors.h"
+#include "GateCalculation.h"
+#include "InputScaling.h"
 
 class RNN_Chess
 {
@@ -14,14 +16,14 @@ public:
 	void UpdateDimensions(int Dimensions[]);
 
 	float* RunRNN(float* InputState);
-	int BackPropagation(int color);
+	int ErrorCalculation(int color);
+	int BackPropagation();
 
 	int FreeWorkSpace();
 
 	Variables variables;
 private:
 	LayerCalculation layerCalculation;
-
-	int GateCalculation(float* d_Gate, int counter, int stackCount, char* description);
-	int UpdateGates(float** GateError, int stackCount, int gateCount, char* description);
+	GateCalculations gateCalculations;
+	InputScaling inputScaling;
 };

@@ -1,20 +1,11 @@
-#pragma comment(lib,"cublas.lib")
 #include "RNN_Chess.cuh"
-#include "cuda_runtime.h"
-#include "device_launch_parameters.h"
-
-#include <stdio.h>
-#include <iostream>
-#include <fstream>
-#include <math.h>
-#include <cstdio>
-#include <ctime>
 
 //Constructor used to allocate memory on the graphics card
 RNN_Chess::RNN_Chess(int Dimensions[])
 {
 	variables.AllocateWorkspace(Dimensions);
 	layerCalculation.InitializeVariables(variables);
+	evaluation.KernelSize(Dimensions[1] * Dimensions[3]);
 }
 
 //Initializes the learning rate
@@ -82,7 +73,7 @@ int RNN_Chess::ErrorCalculation(int color)
 	error = cudaMemset(variables.d_Error_HiddenStates[variables.h_StateCount], 0, variables.h_Dimensions[3] * 64 * sizeof(float));
 	variables.CheckCudaError(error, "ERR_MEMSET");
 
-	layerCalculation.GetStateError(color, variables);
+	layerCalculation.GetStateError(color, variables, evaluation);
 
 	for (int i = 0; i < variables.h_Dimensions[3]; i++)
 	{
@@ -123,9 +114,10 @@ int RNN_Chess::UpdateWeightMatrices(float** InputWeights, float** RecurrentWeigh
 void RNN_Chess::UpdateDimensions(int Dimensions[])
 {
 	cudaError_t error;
-	variables.h_Dimensions = new int[4];
 
-	for (int i = 0; i < 4; i++)
+	variables.h_Dimensions = new int[6];
+
+	for (int i = 0; i < 6; i++)
 	{
 		variables.h_Dimensions[i] = Dimensions[i];
 	}
@@ -135,11 +127,14 @@ void RNN_Chess::UpdateDimensions(int Dimensions[])
 		std::cout << "ERR_CALCULATION" << std::endl;
 		variables.h_StateCount = 0;
 	}
+	evaluation.UpdateEpoch(&variables);
 }
 
 //Frees the before needed workspace
 int RNN_Chess::FreeWorkSpace()
 {
+	evaluation.UpdateEpoch(&variables);
+
 	variables.FreeWorkspace();
 	return 0;
 }

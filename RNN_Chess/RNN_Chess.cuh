@@ -1,8 +1,11 @@
 #include "Variables.h"
 #include "LayerCalculation.cuh"
-#include "CudaErrors.h"
 #include "GateCalculation.h"
 #include "InputScaling.h"
+#include "Evaluation.cuh"
+
+#include <cstdio>
+#include <ctime>
 
 class RNN_Chess
 {
@@ -26,4 +29,5 @@ private:
 	LayerCalculation layerCalculation;
 	GateCalculations gateCalculations;
 	InputScaling inputScaling;
+	Evaluation evaluation;
 };

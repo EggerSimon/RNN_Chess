@@ -82,7 +82,6 @@ int GateCalculations::UpdateGates(float** GateError, int stackCount, int gateCou
 
 	const float alpha = variables.getLearningRate();
 	const float beta = 1;
-	const float beta1 = 0;
 
 	int lastOffset = (stackCount - 1)* variables.h_Dimensions[1];
 	int stackOffset = stackCount * variables.h_Dimensions[1];

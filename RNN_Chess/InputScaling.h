@@ -1,6 +1,5 @@
 #pragma once
 #include "Variables.h"
-#include <iostream>
 
 class InputScaling {
 public:

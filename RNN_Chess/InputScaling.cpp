@@ -6,7 +6,7 @@ int InputScaling::ScaleInput(Variables variables)
 	cudaError_t error;
 
 	const float alpha = 1 / 3.5f;
-	const float beta = 1 / 0.00572916633f;
+	const float beta = 1 / (2 * 0.00572916633f);
 
 	error = cudaMemset(variables.d_InterstageVar[0], 187, 64 * sizeof(float));
 	variables.CheckCudaError(error, "ERR_ENDMATCH");

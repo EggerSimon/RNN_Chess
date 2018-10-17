@@ -1,7 +1,5 @@
 #pragma once
-
 #include "Variables.h"
-#include <iostream>
 
 class GateCalculations {
 public:

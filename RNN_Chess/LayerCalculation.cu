@@ -66,7 +66,7 @@ __global__
 void CalculateStateError(float* Error_HiddenState, float* HiddenState, float* Target, int color)
 {
 	register int dn = blockIdx.x * blockDim.x + threadIdx.x + color * 32;
-	Error_HiddenState[dn] += powf(HiddenState[dn] - Target[dn],3);
+	Error_HiddenState[dn] = powf(HiddenState[dn] - Target[dn],1);
 }
 
 int LayerCalculation::GetStateError(int color, Variables variables)
@@ -93,10 +93,10 @@ int LayerCalculation::GetStateError(int color, Variables variables)
 	cudaError_t error = cudaGetLastError();
 	variables.CheckCudaError(error, "ERR_STATE_ERRORCALCULATION");
 
-	//if (variables.h_Dimensions[0] == variables.h_StateCount + 1)
-	//{
+	if (variables.h_Dimensions[0] == variables.h_StateCount + 1)
+	{
 		float* f = new float[32];
-		error = cudaMemcpy(f, variables.d_HiddenStates[variables.h_StateCount + 1] + stackCount + color * 32, 32 * sizeof(float), cudaMemcpyDeviceToHost);
+		//error = cudaMemcpy(f, variables.d_HiddenStates[variables.h_StateCount + 1] + stackCount + color * 32, 32 * sizeof(float), cudaMemcpyDeviceToHost);
 		//error = cudaMemcpy(f, variables.d_InputStates[variables.h_StateCount + 1] + color * 32, 32 * sizeof(float), cudaMemcpyDeviceToHost);
 		error = cudaMemcpy(f, variables.d_Error_HiddenStates[variables.h_StateCount + 1] + stackCount + color * 32, 32 * sizeof(float), cudaMemcpyDeviceToHost);
 		variables.CheckCudaError(error, "ERR_STATE_ERRORCALCULATION");
@@ -109,7 +109,7 @@ int LayerCalculation::GetStateError(int color, Variables variables)
 
 		free(f);
 		std::cout << "Loss: " << sum << std::endl;
-	//}
+	}
 
 	return 0;
 }

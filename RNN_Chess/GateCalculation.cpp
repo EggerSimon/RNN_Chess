@@ -80,7 +80,7 @@ int GateCalculations::UpdateGates(float** GateError, int stackCount, int gateCou
 {
 	cublasStatus_t cublasStatus;
 
-	const float alpha = -0.001f;
+	const float alpha = variables.getLearningRate();
 	const float beta = 1;
 
 	int lastOffset = (stackCount - 1)* variables.h_Dimensions[1];

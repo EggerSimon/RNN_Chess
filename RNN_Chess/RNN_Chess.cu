@@ -28,20 +28,21 @@ float* RNN_Chess::RunRNN(float* InputState)
 	char** descriptions = new char*[4]{ "ERR_FORGET_FORWARD" ,"ERR_INPUT_FORWARD" ,"ERR_OUTPUT_FORWARD" ,"ERR_CELL_FORWARD" };
 	float*** Gates = new float**[4]{ variables.d_ForgetGate, variables.d_InputGate, variables.d_OutputGate, variables.d_CellGate };
 
+	//copies the inputstate to a variables allocated on the GPU
 	cudaError_t error = cudaMemcpy(variables.d_InputStates[variables.h_StateCount], InputState, variables.h_Dimensions[2] * sizeof(float), cudaMemcpyHostToDevice);
 	variables.CheckCudaError(error, "ERR_VAR_INIT (InputState)");
 
-	//Scales InputMatrix to [-1,1] => mean = 0
+	//Scales InputMatrix to [-0.5,0.5] => mean = 0
 	inputScaling.ScaleInput(variables);
 
-	//for each stacked LSTM block
 	for (int i = 0; i < variables.h_Dimensions[3]; i++)
 	{
-		//for each gate
+		//Calculates the gatevalues for Forget-/Input-/Output- and Cellgate
 		for (int j = 0; j < 4; j++)
 		{
 			gateCalculations.GateCalculation(Gates[j][variables.h_StateCount], j, i, descriptions[j], variables);
 		}
+		//Calculates the value of the Cell and Hidden gate
 		layerCalculation.StateCalculation(i, variables);
 	}
 
@@ -70,15 +71,19 @@ int RNN_Chess::ErrorCalculation(int color)
 
 	variables.h_StateCount--;
 
+	//sets the value of the Error_HiddenState variables to 0, in case it has some values left over from calculations before
 	error = cudaMemset(variables.d_Error_HiddenStates[variables.h_StateCount], 0, variables.h_Dimensions[3] * variables.h_Dimensions[1] * sizeof(float));
 	variables.CheckCudaError(error, "ERR_MEMSET");
 
-	layerCalculation.GetStateError(color, variables, evaluation);
+	//Loss calculation of the hidden states
+	layerCalculation.GetStateError(variables, evaluation);
 
+	//Calculates loss for each stack
 	for (int i = 0; i < variables.h_Dimensions[3]; i++)
 	{
 		layerCalculation.UpdateGates(variables.h_Dimensions[3] - i - 1, variables);
 
+		//passes the gradient backwards to each gate
 		for (int j = 0; j < 4; j++)
 		{
 			gateCalculations.BackwardPass(ErrorGates[j], variables.h_Dimensions[3] - i - 1, j, descriptions[j], variables);
@@ -93,6 +98,7 @@ int RNN_Chess::BackPropagation()
 	char** descriptions = new char*[4]{ "ERR_FORGET_BACKWARD" ,"ERR_INPUT_BACKWARD" ,"ERR_OUTPUT_BACKWARD" ,"ERR_CELL_BACKWARD" };
 	float*** ErrorGates = new float**[4]{ variables.d_Error_ForgetGate, variables.d_Error_InputGate, variables.d_Error_OutputGate, variables.d_Error_CellGate };
 
+	//uses the before calculated gradient to adjust the weights
 	for (int i = 0; i < variables.h_Dimensions[0]; i++) {
 		for (int j = 0; j < variables.h_Dimensions[3]; j++) {
 			for (int k = 0; k < 4; k++) {
@@ -104,17 +110,17 @@ int RNN_Chess::BackPropagation()
 	return 0;
 }
 
-//Updates host weight variables
 int RNN_Chess::UpdateWeightMatrices(float** InputWeights, float** RecurrentWeights, float** Biases)
 {
+	//returns the host variables of the weight matrices, such that they can be stored
 	variables.UpdateWeightMatrices(InputWeights, RecurrentWeights, Biases);
 	return 0;
 }
 
 void RNN_Chess::UpdateDimensions(int Dimensions[])
 {
+	//sets new dimensions for the next chess game
 	cudaError_t error;
-	std::cout << "--------------------------" << std::endl;
 
 	variables.h_Dimensions = new int[6];
 
@@ -123,19 +129,22 @@ void RNN_Chess::UpdateDimensions(int Dimensions[])
 		variables.h_Dimensions[i] = Dimensions[i];
 	}
 
+	//in case calculations were incorrect
 	if (variables.h_StateCount != 0)
 	{
 		std::cout << "ERR_CALCULATION" << std::endl;
 		variables.h_StateCount = 0;
 	}
-	//evaluation.UpdateEpoch(&variables);
+	//updates epochs for statistics
+	evaluation.UpdateEpoch(&variables);
 }
 
-//Frees the before needed workspace
 int RNN_Chess::FreeWorkSpace()
 {
-	//evaluation.UpdateEpoch(&variables);
+	//prints out the loss of the last epoch
+	evaluation.UpdateEpoch(&variables);
 
+	//frees the memory workspace used by the GPU
 	variables.FreeWorkspace();
 	return 0;
 }

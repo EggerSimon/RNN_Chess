@@ -13,6 +13,7 @@ extern "C" LIBRARY_EXPORT int UpdateWeightMatrices(RNN_Chess* instance, float** 
 extern "C" LIBRARY_EXPORT void UpdateDimensions(RNN_Chess* instance, int Dimensions[]);
 
 extern "C" LIBRARY_EXPORT float* RunRNN(RNN_Chess* instance, float* InputState);
-extern "C" LIBRARY_EXPORT int BackPropagation(RNN_Chess* instance, int color);
+extern "C" LIBRARY_EXPORT int ErrorCalculation(RNN_Chess* instance, int color);
+extern "C" LIBRARY_EXPORT int BackPropagation(RNN_Chess* instance);
 
 extern "C" LIBRARY_EXPORT int FreeWorkSpace(RNN_Chess* instance);

@@ -36,11 +36,15 @@ extern "C" LIBRARY_EXPORT float* RunRNN(RNN_Chess* instance, float* InputState)
 }
 
 
-extern "C" LIBRARY_EXPORT int BackPropagation(RNN_Chess* instance, int color)
+extern "C" LIBRARY_EXPORT int ErrorCalculation(RNN_Chess* instance, int color)
 {
-	return instance->BackPropagation(color);
+	return instance->ErrorCalculation(color);
 }
 
+extern "C" LIBRARY_EXPORT int BackPropagation(RNN_Chess* instance)
+{
+	return instance->BackPropagation();
+}
 
 extern "C" LIBRARY_EXPORT int FreeWorkSpace(RNN_Chess* instance)
 {

@@ -1,12 +1,4 @@
 #include "Variables.h"
-#include "CudaErrors.h"
-#include "cuda_runtime.h"
-#include "device_launch_parameters.h"
-
-#include <stdio.h>
-#include <iostream>
-#include <fstream>
-#include <math.h>
 
 /*Dimensions*/
 //0: number of steps
@@ -53,9 +45,13 @@ int Variables::AllocateWorkspace(int Dimensions[])
 	cublasStatus_t cublasStatus;
 	cudnnStatus_t cudnnStatus;
 
-	h_Results = new float[Dimensions[1]];
-	h_Dimensions = Dimensions;
+	h_EpochCount = 0;
 	h_StateCount = 0;
+	h_SampleCount = 0;
+	h_Dimensions = Dimensions;
+	h_Results = new float[Dimensions[1]];
+	h_Loss = new float[Dimensions[4]];
+	h_Accuracy = new float[Dimensions[4]];
 
 	d_CellStates = new float*[Dimensions[0] + 1];
 	d_InputStates = new float*[Dimensions[0] + 1];
@@ -87,6 +83,10 @@ int Variables::AllocateWorkspace(int Dimensions[])
 	CheckCudaError(error, "ERR_VAR_MALLOC (Error_CellStates)");
 	error = cudaMalloc((void **)&d_Error_HiddenStates[0], Dimensions[3] * Dimensions[1] * sizeof(float));
 	CheckCudaError(error, "ERR_VAR_MALLOC (Error_HiddenStates)");
+
+	//Allocation of Evaluation Error
+	error = cudaMalloc((void **)&d_EvaluationError, sizeof(float));
+	CheckCudaError(error, "ERR_VAR_MALLOC (EvaluationError)");
 
 	//Memory Allocation for the different States
 	for (int i = 0; i < Dimensions[0]; i++)

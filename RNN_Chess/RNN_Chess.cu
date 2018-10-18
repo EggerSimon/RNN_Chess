@@ -5,7 +5,7 @@ RNN_Chess::RNN_Chess(int Dimensions[])
 {
 	variables.AllocateWorkspace(Dimensions);
 	layerCalculation.InitializeVariables(variables);
-	evaluation.KernelSize(Dimensions[1] * Dimensions[3]);
+	evaluation.KernelSize(Dimensions[1]);
 }
 
 //Initializes the learning rate
@@ -62,7 +62,7 @@ int RNN_Chess::ErrorCalculation(int color)
 	{
 		inputScaling.setLastInput(variables, color);
 
-		error = cudaMemset(variables.d_Error_HiddenStates[variables.h_StateCount], 0, variables.h_Dimensions[3] * 64 * sizeof(float));
+		error = cudaMemset(variables.d_Error_HiddenStates[variables.h_StateCount], 0, variables.h_Dimensions[3] * variables.h_Dimensions[1] * sizeof(float));
 		variables.CheckCudaError(error, "ERR_MEMSET");
 
 		color = -1;
@@ -70,7 +70,7 @@ int RNN_Chess::ErrorCalculation(int color)
 
 	variables.h_StateCount--;
 
-	error = cudaMemset(variables.d_Error_HiddenStates[variables.h_StateCount], 0, variables.h_Dimensions[3] * 64 * sizeof(float));
+	error = cudaMemset(variables.d_Error_HiddenStates[variables.h_StateCount], 0, variables.h_Dimensions[3] * variables.h_Dimensions[1] * sizeof(float));
 	variables.CheckCudaError(error, "ERR_MEMSET");
 
 	layerCalculation.GetStateError(color, variables, evaluation);
@@ -114,6 +114,7 @@ int RNN_Chess::UpdateWeightMatrices(float** InputWeights, float** RecurrentWeigh
 void RNN_Chess::UpdateDimensions(int Dimensions[])
 {
 	cudaError_t error;
+	std::cout << "--------------------------" << std::endl;
 
 	variables.h_Dimensions = new int[6];
 
@@ -127,13 +128,13 @@ void RNN_Chess::UpdateDimensions(int Dimensions[])
 		std::cout << "ERR_CALCULATION" << std::endl;
 		variables.h_StateCount = 0;
 	}
-	evaluation.UpdateEpoch(&variables);
+	//evaluation.UpdateEpoch(&variables);
 }
 
 //Frees the before needed workspace
 int RNN_Chess::FreeWorkSpace()
 {
-	evaluation.UpdateEpoch(&variables);
+	//evaluation.UpdateEpoch(&variables);
 
 	variables.FreeWorkspace();
 	return 0;

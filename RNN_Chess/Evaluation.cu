@@ -31,7 +31,9 @@ void CalculateLoss(float* Error_HiddenState, float* TotalError)
 
 void Evaluation::addEpochLoss(Variables variables)
 {
-	CalculateLoss << <1, KernelSizes, KernelSizes.x * sizeof(float) >> > (variables.d_Error_HiddenStates[variables.h_StateCount + 1], variables.d_EvaluationError);
+	int stackOffset = (variables.h_Dimensions[3] - 1) * variables.h_Dimensions[1];
+
+	CalculateLoss << <1, KernelSizes, KernelSizes.x * sizeof(float) >> > (variables.d_Error_HiddenStates[variables.h_StateCount + 1] + stackOffset, variables.d_EvaluationError);
 	cudaError_t error = cudaGetLastError();
 	variables.CheckCudaError(error, "ERR_EVALUATION");
 }

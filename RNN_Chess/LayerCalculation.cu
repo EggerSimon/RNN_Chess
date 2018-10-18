@@ -64,7 +64,7 @@ __global__
 void CalculateStateError(float* Error_HiddenState, float* HiddenState, float* Target, int color)
 {
 	register int dn = blockIdx.x * blockDim.x + threadIdx.x + color * 32;
-	Error_HiddenState[dn] += powf(HiddenState[dn] - Target[dn], 3);
+	Error_HiddenState[dn] = HiddenState[dn] - Target[dn];
 }
 
 int LayerCalculation::GetStateError(int color, Variables variables, Evaluation evaluation)
@@ -83,6 +83,9 @@ int LayerCalculation::GetStateError(int color, Variables variables, Evaluation e
 		color = 0;
 	}
 
+	KernelSizes[0].x = 1;
+	KernelSizes[1].x = variables.h_Dimensions[1] / 2;
+
 	int stackCount = (variables.h_Dimensions[3] - 1) * variables.h_Dimensions[1];
 
 	CalculateStateError << <KernelSizes[0], KernelSizes[1] >> > (variables.d_Error_HiddenStates[variables.h_StateCount + 1] + stackCount,
@@ -91,8 +94,25 @@ int LayerCalculation::GetStateError(int color, Variables variables, Evaluation e
 	cudaError_t error = cudaGetLastError();
 	variables.CheckCudaError(error, "ERR_STATE_ERRORCALCULATION");
 
-	if (variables.h_StateCount + 1 == variables.h_Dimensions[0])
-		evaluation.addEpochLoss(variables);
+	/*evaluation.addEpochLoss(variables);*/
+
+	//if (variables.h_StateCount == 0 || variables.h_StateCount + 1 == variables.h_Dimensions[0])
+	//{
+		float* f = new float[32];
+		error = cudaMemcpy(f, variables.d_HiddenStates[variables.h_StateCount + 1] + stackCount + color * 32, 32 * sizeof(float), cudaMemcpyDeviceToHost);
+		//error = cudaMemcpy(f, variables.d_InputStates[variables.h_StateCount + 1] + color * 32, 32 * sizeof(float), cudaMemcpyDeviceToHost);
+		error = cudaMemcpy(f, variables.d_Error_HiddenStates[variables.h_StateCount + 1] + stackCount + color * 32, 32 * sizeof(float), cudaMemcpyDeviceToHost);
+		variables.CheckCudaError(error, "ERR_STATE_ERRORCALCULATION");
+
+		float sum = 0;
+		for (int i = 0; i < 32; i++)
+		{
+			sum += f[i];
+		}
+
+		free(f);
+		std::cout << "Loss: " << sum << std::endl;
+	//}
 
 	return 0;
 }
@@ -102,7 +122,7 @@ void UpdateGateErrors(float* Error_HiddenState, float* Error_CellState, float* L
 	float* Error_InputGate, float* Error_OutputGate, float* CellState, float* LastCellState, float* CellGate, float* ForgetGate, float* InputGate, float* OutputGate)
 {
 	register int dn = blockIdx.x * blockDim.x + threadIdx.x;
-	register int index = floorf(dn / 3);
+	register int index = floorf(dn / 3.0f);
 	register int count = dn - index * 3;
 
 	register float tempError = Error_HiddenState[index] * OutputGate[index] * (1 - __powf(fabsf(tanhf(CellState[index])), 2)) + Last_Error_CellState[index];

@@ -1,10 +1,14 @@
 #include "LayerCalculation.cuh"
 
+
 void LayerCalculation::KernelCalculation(Variables variables)
 {
+	//calculates the dimensions of the kernels lauched later on
 	KernelSizes = new dim3[2];
 	int size = variables.h_Dimensions[1] * 2;
+	//blockDim.x
 	KernelSizes[1].x = 256;
+	//gridDim.x
 	KernelSizes[0].x = ceil((float)size / KernelSizes[1].x);
 }
 
@@ -49,6 +53,7 @@ int LayerCalculation::StateCalculation(int stackCount, Variables variables)
 	int StateCount = variables.h_StateCount;
 	int stackOffset = stackCount * variables.h_Dimensions[1];
 
+	//calculates values for each gate and stack
 	StateCalculator << <KernelSizes[0], KernelSizes[1], KernelSizes[1].x * sizeof(float) >> > (variables.d_CellStates[StateCount] + stackOffset,
 		variables.d_CellStates[StateCount + 1] + stackOffset, variables.d_HiddenStates[StateCount] + stackOffset, variables.d_HiddenStates[StateCount + 1] + stackOffset,
 		variables.d_ForgetGate[StateCount] + stackOffset, variables.d_InputGate[StateCount] + stackOffset, variables.d_OutputGate[StateCount] + stackOffset,
@@ -61,38 +66,27 @@ int LayerCalculation::StateCalculation(int stackCount, Variables variables)
 }
 
 __global__
-void CalculateStateError(float* Error_HiddenState, float* HiddenState, float* Target, int color)
+void CalculateStateError(float* Error_HiddenState, float* HiddenState, float* Target)
 {
-	register int dn = blockIdx.x * blockDim.x + threadIdx.x + color * 32;
-	Error_HiddenState[dn] += powf(HiddenState[dn] - Target[dn], 3);
+	register int dn = blockIdx.x * blockDim.x + threadIdx.x;
+	Error_HiddenState[dn] = HiddenState[dn] - Target[dn];
 }
 
-int LayerCalculation::GetStateError(int color, Variables variables, Evaluation evaluation)
+int LayerCalculation::GetStateError(Variables variables, Evaluation evaluation)
 {
-	//Adjusts the error only to the winning color
-	if (color >= 0)
-	{
-		KernelSizes[0].x = 1;
-		KernelSizes[1].x = variables.h_Dimensions[1] / 2;
-	}
-	//To detect the end of a match
-	else
-	{
-		KernelSizes[0].x = 1;
-		KernelSizes[1].x = variables.h_Dimensions[1];
-		color = 0;
-	}
+	//calculates loss of the predictions
+	KernelSizes[0].x = 1;
+	KernelSizes[1].x = variables.h_Dimensions[1];
 
 	int stackCount = (variables.h_Dimensions[3] - 1) * variables.h_Dimensions[1];
 
 	CalculateStateError << <KernelSizes[0], KernelSizes[1] >> > (variables.d_Error_HiddenStates[variables.h_StateCount + 1] + stackCount,
-		variables.d_HiddenStates[variables.h_StateCount + 1] + stackCount, variables.d_InputStates[variables.h_StateCount + 1], color);
+		variables.d_HiddenStates[variables.h_StateCount + 1] + stackCount, variables.d_InputStates[variables.h_StateCount + 1]);
 
 	cudaError_t error = cudaGetLastError();
 	variables.CheckCudaError(error, "ERR_STATE_ERRORCALCULATION");
 
-	if (variables.h_StateCount + 1 == variables.h_Dimensions[0])
-		evaluation.addEpochLoss(variables);
+	evaluation.addEpochLoss(variables);
 
 	return 0;
 }
@@ -102,7 +96,7 @@ void UpdateGateErrors(float* Error_HiddenState, float* Error_CellState, float* L
 	float* Error_InputGate, float* Error_OutputGate, float* CellState, float* LastCellState, float* CellGate, float* ForgetGate, float* InputGate, float* OutputGate)
 {
 	register int dn = blockIdx.x * blockDim.x + threadIdx.x;
-	register int index = floorf(dn / 3);
+	register int index = floorf(dn / 3.0f);
 	register int count = dn - index * 3;
 
 	register float tempError = Error_HiddenState[index] * OutputGate[index] * (1 - __powf(fabsf(tanhf(CellState[index])), 2)) + Last_Error_CellState[index];
@@ -125,6 +119,7 @@ void UpdateGateErrors(float* Error_HiddenState, float* Error_CellState, float* L
 
 int LayerCalculation::UpdateGates(int stackCount, Variables variables)
 {
+	//passes the before calculated gradients backwards to each gate
 	int count = variables.h_StateCount;
 	int stackOffset = stackCount * variables.h_Dimensions[1];
 

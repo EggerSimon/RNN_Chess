@@ -1,7 +1,15 @@
+#pragma comment(lib,"cublas.lib")
 #pragma once
+#include "CudaErrors.h"
 #include "cudnn.h"
 #include "cublas_v2.h"
-#pragma comment(lib,"cublas.lib")
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
+
+#include <stdio.h>
+#include <iostream>
+#include <fstream>
+#include <math.h>
 
 class Variables
 {
@@ -20,9 +28,13 @@ public:
 
 
 	//Host variables
+	float* h_Accuracy;
 	float* h_Results;
+	float* h_Loss;
 	int* h_Dimensions;
+	int h_EpochCount;
 	int h_StateCount;
+	int h_SampleCount;
 
 	//Workspace variables
 	float** d_CellStates;
@@ -31,6 +43,7 @@ public:
 	float** d_InputWeights;
 	float** d_RecurrentWeights;
 	float** d_Biases;
+	float* d_EvaluationError;
 
 	//Workspace Gates
 	float** d_ForgetGate;

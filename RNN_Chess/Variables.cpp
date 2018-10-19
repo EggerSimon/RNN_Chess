@@ -1,12 +1,4 @@
 #include "Variables.h"
-#include "CudaErrors.h"
-#include "cuda_runtime.h"
-#include "device_launch_parameters.h"
-
-#include <stdio.h>
-#include <iostream>
-#include <fstream>
-#include <math.h>
 
 /*Dimensions*/
 //0: number of steps
@@ -53,9 +45,13 @@ int Variables::AllocateWorkspace(int Dimensions[])
 	cublasStatus_t cublasStatus;
 	cudnnStatus_t cudnnStatus;
 
-	h_Results = new float[Dimensions[1]];
-	h_Dimensions = Dimensions;
+	h_EpochCount = 0;
 	h_StateCount = 0;
+	h_SampleCount = 0;
+	h_Dimensions = Dimensions;
+	h_Results = new float[Dimensions[1]];
+	h_Loss = new float[Dimensions[4]];
+	h_Accuracy = new float[Dimensions[4]];
 
 	d_CellStates = new float*[Dimensions[0] + 1];
 	d_InputStates = new float*[Dimensions[0] + 1];
@@ -87,6 +83,10 @@ int Variables::AllocateWorkspace(int Dimensions[])
 	CheckCudaError(error, "ERR_VAR_MALLOC (Error_CellStates)");
 	error = cudaMalloc((void **)&d_Error_HiddenStates[0], Dimensions[3] * Dimensions[1] * sizeof(float));
 	CheckCudaError(error, "ERR_VAR_MALLOC (Error_HiddenStates)");
+
+	//Allocation of Evaluation Error
+	error = cudaMalloc((void **)&d_EvaluationError, sizeof(float));
+	CheckCudaError(error, "ERR_VAR_MALLOC (EvaluationError)");
 
 	//Memory Allocation for the different States
 	for (int i = 0; i < Dimensions[0]; i++)
@@ -244,25 +244,71 @@ int Variables::FreeWorkspace()
 		CheckCudaError(error, "ERR_VAR_FREE (InputStates)");
 		error = cudaFree(d_HiddenStates[i]);
 		CheckCudaError(error, "ERR_VAR_FREE (HiddenStates)");
+		error = cudaFree(d_CellStates[i]);
+		CheckCudaError(error, "ERR_VAR_FREE (CellState)");
+		error = cudaFree(d_Error_HiddenStates[i]);
+		CheckCudaError(error, "ERR_VAR_FREE (Error_HiddenState)");
+		error = cudaFree(d_Error_CellStates[i]);
+		CheckCudaError(error, "ERR_VAR_FREE (Error_CellState)");
+		error = cudaFree(d_ForgetGate[i]);
+		CheckCudaError(error, "ERR_VAR_FREE (ForgetGate)");
+		error = cudaFree(d_InputGate[i]);
+		CheckCudaError(error, "ERR_VAR_FREE (InputGate)");
+		error = cudaFree(d_OutputGate[i]);
+		CheckCudaError(error, "ERR_VAR_FREE (OutputGate)");
+		error = cudaFree(d_CellGate[i]);
+		CheckCudaError(error, "ERR_VAR_FREE (CellGate)");
+		error = cudaFree(d_Error_ForgetGate[i]);
+		CheckCudaError(error, "ERR_VAR_FREE (Error_ForgetGate)");
+		error = cudaFree(d_Error_InputGate[i]);
+		CheckCudaError(error, "ERR_VAR_FREE (Error_InputGate)");
+		error = cudaFree(d_Error_OutputGate[i]);
+		CheckCudaError(error, "ERR_VAR_FREE (Error_OutputGate)");
+		error = cudaFree(d_Error_CellGate[i]);
+		CheckCudaError(error, "ERR_VAR_FREE (Error_CellGate)");
 	}
+
+	error = cudaFree(d_InputStates[h_Dimensions[0]]);
+	CheckCudaError(error, "ERR_VAR_FREE (InputStates)");
+	error = cudaFree(d_HiddenStates[h_Dimensions[0]]);
+	CheckCudaError(error, "ERR_VAR_FREE (HiddenStates)");
+	error = cudaFree(d_CellStates[h_Dimensions[0]]);
+	CheckCudaError(error, "ERR_VAR_FREE (CellState)");
+	error = cudaFree(d_Error_HiddenStates[h_Dimensions[0]]);
+	CheckCudaError(error, "ERR_VAR_FREE (Error_HiddenState)");
+	error = cudaFree(d_Error_CellStates[h_Dimensions[0]]);
+	CheckCudaError(error, "ERR_VAR_FREE (Error_CellState)");
 
 	for (int i = 0; i < 4; i++)
 	{
+		cudnnStatus = cudnnDestroyActivationDescriptor(activation_descriptor[i]);
+		CheckCudnnStatus(cudnnStatus, "ERR_CUDNN_DESTROY (Activation)");
 		error = cudaFree(d_InputWeights[i]);
 		CheckCudaError(error, "ERR_VAR_FREE (InputWeights)");
 		error = cudaFree(d_RecurrentWeights[i]);
 		CheckCudaError(error, "ERR_VAR_FREE (RecurrentWeights)");
 		error = cudaFree(d_Biases[i]);
 		CheckCudaError(error, "ERR_VAR_FREE (Biases)");
-
-		cudnnStatus = cudnnDestroyActivationDescriptor(activation_descriptor[i]);
-		CheckCudnnStatus(cudnnStatus, "ERR_CUDNN_DESTROY (Activation)");
 	}
+
+	for (int i = 0; i < 3; i++) {
+		error = cudaFree(d_InterstageVar[i]);
+		CheckCudaError(error, "ERR_VAR_FREE (HiddenStates)");
+	}
+
+	error = cudaFree(d_EvaluationError);
+	CheckCudaError(error, "ERR_VAR_FREE (HiddenStates)");
 
 	cudnnStatus = cudnnDestroy(cudnn);
 	CheckCudnnStatus(cudnnStatus, "ERR_CUDNN_DESTROY (Handler)");
 	cublasStatus = cublasDestroy(cublas);
 	CheckCublasStatus(cublasStatus, "ERR_CUBLAS_DESTROY (Handler)");
+
+	//free(h_Results);
+	free(h_Dimensions);
+	h_EpochCount = 0;
+	h_StateCount = 0;
+	h_SampleCount = 0;
 
 	return 0;
 }

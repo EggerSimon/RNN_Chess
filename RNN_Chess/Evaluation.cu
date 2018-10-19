@@ -51,10 +51,29 @@ void Evaluation::UpdateEpoch(Variables* variables)
 		error = cudaMemset(variables[0].d_EvaluationError, 0, sizeof(float));
 		variables[0].CheckCudaError(error, "ERR_EVALUATION");
 
+		if (variables[0].h_EpochCount >= 1) {
+			if (variables[0].h_Loss[variables[0].h_EpochCount] > variables[0].h_Loss[variables[0].h_EpochCount - 1]) {
+				variables[0].LearningRate /= 2;
+			}
+		}
+
 		std::cout << "Epoch: " << variables[0].h_EpochCount << "\nLoss: " << variables[0].h_Loss[variables[0].h_EpochCount] << std::endl;
 
 		variables[0].h_SampleCount = 0;
 		variables[0].h_EpochCount++;
 	}
 	variables[0].h_SampleCount++;
+}
+
+void Evaluation::GetTrainingStatistics(Variables variables)
+{
+	std::cout << "\n\n=====================";
+	std::cout << "Training Evaluation";
+	std::cout << "=====================\n\n" << std::endl;
+
+	std::cout << "Loss Reduction:\t\t" << variables.h_Loss[variables.h_EpochCount - 1] - variables.h_Loss[0] << std::endl;
+	std::cout << "New Learningrate:\t" << variables.LearningRate << std::endl;	
+
+	float meanLoss = 7 * variables.h_Loss[variables.h_EpochCount - 1] / (variables.h_Dimensions[0] * variables.h_Dimensions[1] * variables.h_Dimensions[3]);
+	std::cout << "Average Loss:\t\t" << meanLoss << std::endl;
 }

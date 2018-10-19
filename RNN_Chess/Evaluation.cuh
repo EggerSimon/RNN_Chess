@@ -9,6 +9,7 @@ public:
 	void KernelSize(int blockDim);
 	void addEpochLoss(Variables variables);
 	void UpdateEpoch(Variables* variables);
+	void GetTrainingStatistics(Variables variabels);
 
 private:
 	dim3 KernelSizes;

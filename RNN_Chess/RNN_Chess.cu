@@ -143,7 +143,11 @@ int RNN_Chess::FreeWorkSpace()
 {
 	//prints out the loss of the last epoch
 	evaluation.UpdateEpoch(&variables);
+<<<<<<< HEAD
 	evaluation.GetTrainingStatistics(variables);
+=======
+
+>>>>>>> 0fdacb842a6d3eb20a3fea9b66e7019cf35c97a5
 	//frees the memory workspace used by the GPU
 	variables.FreeWorkspace();
 	return 0;
